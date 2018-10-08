@@ -1,79 +1,93 @@
 package cz.muni.fi.pa165.currency;
 
 import java.math.BigDecimal;
+import java.util.Currency;
 import org.junit.Test;
-//import static org.junit.Assert.*;
-import  java.util.Currency;
 import static org.mockito.Mockito.mock;
 import static org.assertj.core.api.Assertions.*;
-
-
+import org.mockito.Mockito;
+import static org.mockito.Mockito.when;
 
 
 public class CurrencyConvertorImplTest {
+    public static final Currency EUR = Currency.getInstance("EUR");
+    public static final Currency CZK = Currency.getInstance("CZK");
     
     @Test
-    public void testConvert() {
+    public void testConvert() throws ExternalServiceFailureException {
         // Don't forget to test border values and proper rounding.
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
         
-    CurrencyConvertorImpl cctest = new CurrencyConvertorImpl(mock(ExchangeRateTable.class));
-    Currency sourceCurrency = Currency.getInstance("EUR");
-    Currency finalCurrency = Currency.getInstance("CZK");
-    assertThat(cctest.convert(sourceCurrency, finalCurrency, new BigDecimal("15.29")).equals(new BigDecimal("382.25")));
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
+        when(exchangeRateTable.getExchangeRate(EUR, CZK)).thenReturn(new BigDecimal("123.456"));
+        
+        
+        assertThat(currencyConvertor.convert(EUR, CZK, new BigDecimal("654.321"))).isEqualTo(new BigDecimal("80779.85"));
+       
     
     }
 
     @Test
-    public void testConvertWithNullSourceCurrency() {
-    CurrencyConvertorImpl cctest = new CurrencyConvertorImpl(mock(ExchangeRateTable.class));
-    Currency finalCurrency = Currency.getInstance("CZK");
+    public void testConvertWithNullSourceCurrency() throws ExternalServiceFailureException {
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
     
-    
-    assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-    BigDecimal converted = cctest.convert(null, finalCurrency, new BigDecimal("15.29"));
-    });
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
+        BigDecimal converted = currencyConvertor.convert(null, CZK, new BigDecimal("654.321"));
+        });
+
+    }
+
+    @Test
+    public void testConvertWithNullTargetCurrency() throws ExternalServiceFailureException {
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
+        
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
+        BigDecimal converted = currencyConvertor.convert(EUR, null, new BigDecimal("654.321"));
+        });
    
     }
 
     @Test
-    public void testConvertWithNullTargetCurrency() {
-    CurrencyConvertorImpl cctest = new CurrencyConvertorImpl(mock(ExchangeRateTable.class));
-    Currency sourceCurrency = Currency.getInstance("CZK");
+    public void testConvertWithNullSourceAmount() throws ExternalServiceFailureException {
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
     
-    assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-    BigDecimal converted = cctest.convert(sourceCurrency, null, new BigDecimal("15.29"));
-    });
-   
-    }
 
-    @Test
-    public void testConvertWithNullSourceAmount() {
-    CurrencyConvertorImpl cctest = new CurrencyConvertorImpl(mock(ExchangeRateTable.class));
-    Currency sourceCurrency = Currency.getInstance("EUR");
-    Currency targetCurrency = Currency.getInstance("CZK");
-    
-    
-    assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
-    BigDecimal converted = cctest.convert(sourceCurrency, targetCurrency, null);
-    });
+        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> {
+        BigDecimal converted = currencyConvertor.convert(EUR, CZK, null);
+        });
        
     }
 
     @Test
-    public void testConvertWithUnknownCurrency() {
-    CurrencyConvertorImpl cctest = new CurrencyConvertorImpl(mock(ExchangeRateTable.class));
-    Currency sourceCurrency = Currency.getInstance("MOZNO");
-    Currency targetCurrency = Currency.getInstance("CZK");
+    public void testConvertWithUnknownCurrency() throws ExternalServiceFailureException {
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
+        
+        when(exchangeRateTable.getExchangeRate(EUR, CZK)).thenReturn(null);
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
     
-    assertThatExceptionOfType(UnknownExchangeRateException.class).isThrownBy(() -> {
-    BigDecimal converted = cctest.convert(sourceCurrency, targetCurrency, null);
-    });
+        assertThatExceptionOfType(UnknownExchangeRateException.class).isThrownBy(() -> {
+        BigDecimal converted = currencyConvertor.convert(EUR, CZK, new BigDecimal("654.321"));
+        });
     
     }
-
+ 
     @Test
-    public void testConvertWithExternalServiceFailure() {
-        fail("Test is not implemented yet.");
+   
+    public void testConvertWithExternalServiceFailure() throws ExternalServiceFailureException {
+        
+        ExchangeRateTable exchangeRateTable = mock(ExchangeRateTable.class);
+        
+        
+        when(exchangeRateTable.getExchangeRate(EUR, CZK)).thenThrow(new ExternalServiceFailureException("test exception"));
+        CurrencyConvertorImpl currencyConvertor = new CurrencyConvertorImpl(exchangeRateTable);
+        
+        assertThatExceptionOfType(UnknownExchangeRateException.class).isThrownBy(() -> {
+        BigDecimal converted = currencyConvertor.convert(EUR, CZK, new BigDecimal("654.321"));    
+        });
+        
     }
 
 }
